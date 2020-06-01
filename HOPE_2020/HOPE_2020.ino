@@ -22,14 +22,15 @@ float caudal=0;
 float pnominal=0;
 float pnominalpin=11;
 
-//variables globales para las pantallas
-int inspiratoryFlow = 25; //volumen a introducir en el paciente. Lo define el médico
-int flowPressure; // aún no está integrada
-int peep; //no influye en el programa, pero tiene que poderse editar para que lo vea el médico
-int piMax; // aún no está integrada
-int respiratoryRate = 30; //dato que introducirá el médico. Inspiraciones por minuto 
-int fi02; //no influye en el programa, pero tiene que poderse editar para que lo vea el médico
+//variables globales para las pantallas (Inicialiamos valores por defecto)
+int inspiratoryFlow = 30; //volumen a introducir en el paciente. Lo define el médico.. Rango de 0 - 50 (de 1 en 1) - default: 30
+int flowPressure = 200; // aún no está integrada. Rango de 100 - 500 (de 10 en 10) - default: 200
+int peep = 5; //no influye en el programa, pero tiene que poderse editar para que lo vea el médico. Rango de 0 - 25 (de 1 en 1) - default: 5
+int piMax = 25; // aún no está integrada. Rango de 0 - 40 (de 1 en 1) - default: 25
+int respiratoryRate = 30; //dato que introducirá el médico. Inspiraciones por minuto. Rango de 0 - 50 (de 1 en 1) - default: 15
+int fi02 = 50; //no influye en el programa, pero tiene que poderse editar para que lo vea el médico. Rango de 0 a 100 (1 en 1) - default: 50
 int ie = 3; //tasa inspiracion/espiracion: el paciente tarda 2 o 3 veces más en espirar que en inspirar. Lo define el mmédico
+            // Rango de 1 - 3 (de 1 en 1) - default: 2
 
 //declaraciones de PWM y velocidad
 const uint8_t EN = 8;
@@ -47,7 +48,7 @@ float currentTimedos; //otro contador de tiempo. La resta de contadores es el Ti
 
 
 
-bool debug = true; //modo debug
+bool debug = false; //modo debug. Muestra mas logs por consola
 
 //----------------------------------
 // Inicialización del cambio de página
@@ -107,7 +108,7 @@ bool firstRefresh()
 
     if (myNex.currentPageId != myNex.lastCurrentPageId)
     { // Si los dos valores son diferentes, significa que se ha cargado una página nueva
-
+        Serial.println("Nueva pagina cargada");
         newPageLoaded = true; // nueva página cargada
 
         switch (myNex.currentPageId)
@@ -131,6 +132,15 @@ bool firstRefresh()
         case 4: //Pressure Control 2/2
             refreshPressureControlDiag();
             break;
+
+        case 5: //Pressure Control 1/2
+            refreshCPAPSettings();
+            break;
+
+        case 6: //Pressure Control 2/2
+            refreshCPAPDiag();
+            break;
+
         }
 
         newPageLoaded = false;
@@ -153,6 +163,7 @@ void readSensorValues()
     }
 }
 
+// Funciones refresco pantallas -----------------------------------------------------------------
 void refreshCurrentPage() //Actualizamos las páginas de monitorización (Diag)
 {
     // En esta función actualizamos los valores cada DATA_REFRESH_RATE ms
@@ -168,6 +179,10 @@ void refreshCurrentPage() //Actualizamos las páginas de monitorización (Diag)
             refreshPressureControlDiag();
             break;
 
+        case 6: //CPAP 2/2
+            refreshCPAPDiag();
+            break;
+
         default:
             break;
         }
@@ -178,49 +193,67 @@ void refreshCurrentPage() //Actualizamos las páginas de monitorización (Diag)
 void refreshPage0() //Pantalla inicial
 {
     Serial.println("Refrescamos página PRINCIPAL");
+    stop();
 }
 
 void refreshVolumeControlSettings() //Volume Control 1/2
 {
-    Serial.println("Cargamos valores página VOLUME Control 1/2");
-
-    stop();
-    myNex.writeNum("n0.val", inspiratoryFlow); // Inspiratory flow
-    myNex.writeNum("n1.val", flowPressure);   // Blood pressure
-    myNex.writeNum("n2.val", peep);            // PEEP
-    myNex.writeNum("n3.val", piMax);           // PiMax
-    myNex.writeNum("n4.val", respiratoryRate); // Respiratory Rate
-    myNex.writeNum("n5.val", ie);              // IE Rate
-    myNex.writeNum("n6.val", fi02);            // FiO2
+    refreshSettingsScreenValues();
 }
 
 void refreshVolumeControlDiag() //Volume Control 2/2
 {
-    Serial.println("Actualizamos valores página VOLUME Control 2/2");
-    run();
+    refreshDiagScreenValues();
 }
 
 void refreshPressureControlSettings() //Pressure Control 1/2
 {
-    Serial.println("Cargamos valores página PRESSURE Control 1/2");
-    stop();
-
-    myNex.writeNum("n0.val", inspiratoryFlow); // Inspiratory flow
-    myNex.writeNum("n1.val", flowPressure);   // Blood pressure
-    myNex.writeNum("n2.val", peep);            // PEEP
-    myNex.writeNum("n3.val", piMax);           // PiMax
-    myNex.writeNum("n4.val", respiratoryRate); // Respiratory Rate
-    myNex.writeNum("n5.val", ie);              // IE Rate
-    myNex.writeNum("n6.val", fi02);            // FiO2
+    refreshSettingsScreenValues();
 }
 
 void refreshPressureControlDiag() //Pressure Control 2/2
 {
-    Serial.println("Actualizamos valores página PRESSURE Control 2/2");
-    run();
+    refreshDiagScreenValues();
 }
 
-//Arranque motorController
+void refreshCPAPSettings() //CPAP 1/2
+{
+    refreshSettingsScreenValues();
+}
+
+void refreshCPAPDiag() //CPAP 2/2
+{
+    refreshDiagScreenValues();
+}
+
+// Pintado de valores en las pantallas tanto de settings como de diagnosis
+void refreshSettingsScreenValues()
+{
+    myNex.writeNum("n0.val", inspiratoryFlow);  // Inspiratory flow
+    myNex.writeNum("n1.val", flowPressure);     // Flow pressure
+    myNex.writeNum("n2.val", peep);             // PEEP
+    myNex.writeNum("n3.val", piMax);            // PiMax
+    myNex.writeNum("n4.val", respiratoryRate);  // Respiratory Rate
+    myNex.writeNum("n5.val", ie);               // IE Rate
+    myNex.writeNum("n6.val", fi02);             // FiO2
+}
+
+void refreshDiagScreenValues()
+{
+    //4 valores fijos
+    myNex.writeNum("n0.val", inspiratoryFlow);  // Inspiratory flow
+    myNex.writeNum("n1.val", respiratoryRate);  // Respiratory rate
+    myNex.writeNum("n2.val", flowPressure);     // Flow Pressure
+    myNex.writeNum("n3.val", ie);               // IE
+
+    //valores que fluctuan
+    myNex.writeNum("n4.val", pnominal);         // Flow pressure instantanea
+    myNex.writeNum("j0.val", pnominal);         // Flow pressure instantanea
+    myNex.writeNum("n5.val", flow1);            // Inspiratory flow instantena
+    myNex.writeNum("j1.val", flow1);            // Inspiratory flow instantena
+}
+
+// Control del motor -----------------------------------------------------------------
 void run()
 {
     Serial.println("Ejecutamos funcion run()");
@@ -246,7 +279,7 @@ void run()
     if (fcsuperiorstatus == 1 || caudal * respiratoryRate > inspiratoryFlow)      //RECORRIDO HACIA ATRÁS
     { 
         Serial.print("Paramos a (L/min):");
-        Serial.println(caudal*fr);
+        Serial.println(caudal*respiratoryRate);
         //motorController.Stop();
         caudal=0;
         flow1=0;
@@ -276,6 +309,7 @@ void stop()
     motorController.Stop();
 }
 
+// Salvado e impresión de variables globales -----------------------------------------------------------------
 void saveValues()
 {
     Serial.println("Ejecutamos función saveValues()");
@@ -299,12 +333,14 @@ void printValues()
     }  
 }
 
-/** -------- Triggers botones -------- **/
-// INFO: Para linkar un trigger con su botón hay que añadir en el releaseEvent del botón lo siguiente:
-// Para el trigger1 printh 23 02 54 01
-// Para el trigger2 printh 23 02 54 02
-// ...
-// Para el trigger10 printh 23 02 54 0A (OJO!! son valores hexadecimales)
+// Triggers botones  -----------------------------------------------------------------
+
+/* INFO: Para linkar un trigger con su botón hay que añadir en el releaseEvent del botón lo siguiente:
+    Para el trigger1 printh 23 02 54 01
+    Para el trigger2 printh 23 02 54 02
+    ...
+    Para el trigger10 printh 23 02 54 0A (OJO!! son valores hexadecimales)
+*/
 
 // PANTALLA PRINCIPAL (triggers de 1 a 10)
 void trigger1() //Boton Volume Control - Main screen (printh 23 02 54 01)
@@ -323,7 +359,7 @@ void trigger3() //Boton CPAP - Main screen (printh 23 02 54 03)
 
 }
 
-//PANTALLAS VOLUME Control (triggers de 11 a 20)
+//PANTALLAS VOLUME Control (triggers de 11 a 20) ---------------------------
 void trigger11() //Boton BACK Volume Control 1/2 (printh 23 02 54 0B)
 {
     Serial.println("Pulsamos botón Back - Pagina Volume Control 1/2");
@@ -333,6 +369,7 @@ void trigger12() //Boton RUN Volume Control 1/2 (printh 23 02 54 0C)
 {
     Serial.println("Pulsamos botón Run - Pagina Volume Control 1/2");
     saveValues();
+    run();
 }
 
 void trigger13() //Boton BACK Volume Control 2/2 (printh 23 02 54 0D)
@@ -340,7 +377,7 @@ void trigger13() //Boton BACK Volume Control 2/2 (printh 23 02 54 0D)
     Serial.println("Pulsamos botón Back - Pagina Volume Control 2/2");
 }
 
-//PANTALLAS Pressure Control (triggers de 21 a 30)
+//PANTALLAS Pressure Control (triggers de 21 a 30) -------------------------
 void trigger21() //Boton BACK Pressure Control 1/2 (printh 23 02 54 15)
 {
     Serial.println("Pulsamos botón Back - Pagina Pressure Control 1/2");
@@ -350,6 +387,7 @@ void trigger22() //Boton RUN Pressure Control 1/2 (printh 23 02 54 16)
 {
     Serial.println("Pulsamos botón Run - Pagina Pressure Control 1/2");
     saveValues();
+    run();
 }
 
 void trigger23() //Boton BACK Pressure Control 2/2 (printh 23 02 54 17)
@@ -357,4 +395,20 @@ void trigger23() //Boton BACK Pressure Control 2/2 (printh 23 02 54 17)
     Serial.println("Pulsamos botón Back - Pagina Pressure Control 2/2");
 }
 
-//PANTALLAS CPAP
+//PANTALLAS CPAP (triggers de 31 a 40) -------------------------------------
+void trigger31() //Boton BACK CPAP 1/2 (printh 23 02 54 1F)
+{
+    Serial.println("Pulsamos botón Back - Pagina Pressure Control 1/2");
+}
+
+void trigger32() //Boton RUN CPAP 1/2 (printh 23 02 54 20)
+{
+    Serial.println("Pulsamos botón Run - Pagina Pressure Control 1/2");
+    saveValues();
+    run();
+}
+
+void trigger33() //Boton BACK CPAP 2/2 (printh 23 02 54 21)
+{
+    Serial.println("Pulsamos botón Back - Pagina Pressure Control 2/2");
+}
