@@ -49,6 +49,7 @@ float currentTimedos; //otro contador de tiempo. La resta de contadores es el Ti
 
 
 bool debug = false; //modo debug. Muestra mas logs por consola
+bool motorOn = false; //true cuando el motor deba estar arrancado
 
 //----------------------------------
 // Inicialización del cambio de página
@@ -66,7 +67,7 @@ bool debug = false; //modo debug. Muestra mas logs por consola
 unsigned long pageRefreshTimer = millis(); // Timer de DATA_REFRESH_RATE
 bool newPageLoaded = false;                // true con la primera carga de una página ( lastCurrentPageId != currentPageId )
 
-#define GET_DATA_EVERY 2000 // Leemos los datos de los sensores cada X tiempo
+#define GET_DATA_EVERY 100 // Leemos los datos de los sensores cada X tiempo
 
 unsigned long getDataTimer = millis(); // Timer para GET_DATA_EVERY
 
@@ -100,6 +101,10 @@ void loop()
     if (!firstRefresh())
     {
         refreshCurrentPage();
+    }
+
+    if (motorOn) {
+        run();
     }
 }
 
@@ -193,7 +198,7 @@ void refreshCurrentPage() //Actualizamos las páginas de monitorización (Diag)
 void refreshPage0() //Pantalla inicial
 {
     Serial.println("Refrescamos página PRINCIPAL");
-    stop();
+    motorOn = false;
 }
 
 void refreshVolumeControlSettings() //Volume Control 1/2
@@ -294,19 +299,18 @@ void run()
             fcsuperiorstatus=digitalRead(fcsuperiorpin); 
         } while(fcinferiorstatus==0); //debiera ser 1, pero ruido
 
-        stop();
+        motorController.Stop(); //no ponemos motorOn a false porque no queremos dejar de llamar a run() en el loop.
     }
 
     Serial.print(caudal*respiratoryRate, DEC); // Print litres/hour
     Serial.println(" L/min");
 }
 
-void stop()
+void stopByUser()
 {
-    Serial.println("Ejecutamos función stop()");
-
-    //TO DO - Parar motor
+    Serial.println("Ejecutamos función stopByUser()");
     motorController.Stop();
+    motorOn = false;
 }
 
 // Salvado e impresión de variables globales -----------------------------------------------------------------
@@ -363,6 +367,7 @@ void trigger3() //Boton CPAP - Main screen (printh 23 02 54 03)
 void trigger11() //Boton BACK Volume Control 1/2 (printh 23 02 54 0B)
 {
     Serial.println("Pulsamos botón Back - Pagina Volume Control 1/2");
+    stopByUser(); //paramos motor al ir a la pantalla principal
 }
 
 void trigger12() //Boton RUN Volume Control 1/2 (printh 23 02 54 0C)
@@ -381,13 +386,14 @@ void trigger13() //Boton BACK Volume Control 2/2 (printh 23 02 54 0D)
 void trigger21() //Boton BACK Pressure Control 1/2 (printh 23 02 54 15)
 {
     Serial.println("Pulsamos botón Back - Pagina Pressure Control 1/2");
+    stopByUser(); //paramos motor al ir a la pantalla principal
 }
 
 void trigger22() //Boton RUN Pressure Control 1/2 (printh 23 02 54 16)
 {
     Serial.println("Pulsamos botón Run - Pagina Pressure Control 1/2");
     saveValues();
-    run();
+    motorOn = true; //arrancamos motor
 }
 
 void trigger23() //Boton BACK Pressure Control 2/2 (printh 23 02 54 17)
@@ -399,13 +405,14 @@ void trigger23() //Boton BACK Pressure Control 2/2 (printh 23 02 54 17)
 void trigger31() //Boton BACK CPAP 1/2 (printh 23 02 54 1F)
 {
     Serial.println("Pulsamos botón Back - Pagina Pressure Control 1/2");
+    stopByUser(); //paramos motor al ir a la pantalla principal
 }
 
 void trigger32() //Boton RUN CPAP 1/2 (printh 23 02 54 20)
 {
     Serial.println("Pulsamos botón Run - Pagina Pressure Control 1/2");
     saveValues();
-    run();
+    motorOn = true; //arrancamos motor
 }
 
 void trigger33() //Boton BACK CPAP 2/2 (printh 23 02 54 21)
