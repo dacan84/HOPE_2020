@@ -374,7 +374,7 @@ void trigger12() //Boton RUN Volume Control 1/2 (printh 23 02 54 0C)
 {
     Serial.println("Pulsamos botón Run - Pagina Volume Control 1/2");
     saveValues();
-    run();
+    motorOn = true; //arrancamos motor
 }
 
 void trigger13() //Boton BACK Volume Control 2/2 (printh 23 02 54 0D)
